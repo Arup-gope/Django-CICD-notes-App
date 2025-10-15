@@ -1,27 +1,35 @@
+# Use official Python 3.9 image
 FROM python:3.9
 
 # Set working directory
 WORKDIR /app/backend
 
-# Copy and install dependencies
-COPY requirements.txt /app/backend
-RUN apt-get update \
-    && apt-get upgrade -y \
-    && apt-get install -y gcc default-libmysqlclient-dev pkg-config \
+# Copy requirements file
+COPY requirements.txt /app/backend/
+
+# Install system dependencies including netcat for DB wait
+RUN apt-get update && apt-get upgrade -y \
+    && apt-get install -y gcc default-libmysqlclient-dev pkg-config netcat \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install mysqlclient
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install mysqlclient
 
-# Copy the rest of the app
+# Copy application code
 COPY . /app/backend
 
-# Expose the Django port
+# Expose Django port
 EXPOSE 8000
 
-# Run database migrations (optional, better to do via entrypoint script)
-# RUN python manage.py migrate
-# RUN python manage.py makemigrations
-
-# 🔹 Keep container running by starting the Django app
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+# Entrypoint: Wait for DB, migrate, and run server
+CMD bash -c "\
+    echo 'Waiting for database at $DB_HOST:$DB_PORT...' && \
+    until nc -z $DB_HOST $DB_PORT; do \
+        echo 'Database not ready yet. Sleeping 2s...'; \
+        sleep 2; \
+    done; \
+    echo 'Database is up! Running migrations...' && \
+    python manage.py migrate && \
+    echo 'Starting Django server...' && \
+    python manage.py runserver 0.0.0.0:8000"
