@@ -18,8 +18,8 @@ COPY . /app/backend
 
 EXPOSE 8000
 # Run migrations (optional, but usually done at container start)
-RUN python manage.py makemigrations
-RUN python manage.py migrate
+#RUN python manage.py makemigrations
+#RUN python manage.py migrate
 
 # Add this at the end to start Django
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
